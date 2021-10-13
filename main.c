@@ -86,19 +86,19 @@ void permuteInverse(uint16_t out[4])
 int encrypt(uint8_t data[8], uint8_t key[8],  uint16_t sBox[16])
 {
     uint16_t state[4], rk[4];
-
     memcpy(state, data, sizeof(state));
     memcpy(rk, key, sizeof(rk));
-
 
     for(int round = 0 ; round < 4; round++)
     {
         // key addition
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++)
+        {
             state[i] ^= rk[i];
         }
+        // apply sBox
         sbox(sBox, state);
-
+        // apply permutation
         permute(state);
     }
 
@@ -116,16 +116,17 @@ int decrypt(uint8_t data[8], uint8_t key[8], uint16_t sBoxInverse[16])
 
     for(int round = 0; round < 4; round++)
     {
+        // apply inverse permutation
         permuteInverse(state);
 
+        // apply sBox with inverse table
         sbox(sBoxInverse, state);
         // key addition
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++)
+        {
             state[i] ^= rk[i];
         }
     }
-
-
     memcpy(data, state, sizeof(state));
 
     return 1;
@@ -141,8 +142,8 @@ int main()
     //                            0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   A,   B,   C,   D,   E,   F
     uint16_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
 
-    uint8_t data[8] = {0};
-    uint8_t key[8] = {0xab, 0xcd, 0xef};
+    uint8_t data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAA};
+    uint8_t key[8] = {0xab, 0xcd, 0xef, 0x01, 0xab, 0xcd, 0xef, 0x01};
 
     for (int i = 0; i < 8; i++)
     {
