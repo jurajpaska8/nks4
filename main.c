@@ -3,132 +3,123 @@
 #include <stdlib.h>
 #include <string.h>
 
-void sbox(uint16_t sBoxes[16], uint16_t state[4])
+void sbox(const uint16_t sBoxes[16], uint16_t* state)
 {
-    state[0] =
-              (sBoxes[(state[0] >> 0) & (uint16_t)0x000f] << 0)
-              ^ (sBoxes[(state[0] >> 4) & (uint16_t)0x000f] << 4)
-              ^ (sBoxes[(state[0] >> 8) & (uint16_t)0x000f] << 8)
-              ^ (sBoxes[(state[0] >> 12) & (uint16_t)0x000f] << 12);
-
-    state[1] =
-            (sBoxes[(state[1] >> 0) & (uint16_t)0x000f] << 0)
-            ^ (sBoxes[(state[1] >> 4) & (uint16_t)0x000f] << 4)
-            ^ (sBoxes[(state[1] >> 8) & (uint16_t)0x000f] << 8)
-            ^ (sBoxes[(state[1] >> 12) & (uint16_t)0x000f] << 12);
-
-    state[2] =
-            (sBoxes[(state[2] >> 0) & (uint16_t)0xf] << 0)
-            ^ (sBoxes[(state[2] >> 4) & (uint16_t)0xf] << 4)
-            ^ (sBoxes[(state[2] >> 8) & (uint16_t)0xf] << 8)
-            ^ (sBoxes[(state[2] >> 12) & (uint16_t)0xf] << 12);
-
-    state[3] =
-            (sBoxes[(state[3] >> 0) & (uint16_t)0xf] << 0)
-            ^ (sBoxes[(state[3] >> 4) & (uint16_t)0xf] << 4)
-            ^ (sBoxes[(state[3] >> 8) & (uint16_t)0xf] << 8)
-            ^ (sBoxes[(state[3] >> 12) & (uint16_t)0xf] << 12);
-
+    *state =
+              (sBoxes[(*state >> 0) & (uint16_t)0x000f] << 0)
+              ^ (sBoxes[(*state >> 4) & (uint16_t)0x000f] << 4)
+              ^ (sBoxes[(*state >> 8) & (uint16_t)0x000f] << 8)
+              ^ (sBoxes[(*state >> 12) & (uint16_t)0x000f] << 12);
 }
 
-void permute(uint16_t state[4])
+void permute(uint16_t* state, const uint16_t permutation[], int permLen)
 {
-    uint16_t out[4] = {0};
-    out[0] ^= state[0] & 0x1111;
-    out[1] ^= state[0] & 0x2222;
-    out[2] ^= state[0] & 0x4444;
-    out[3] ^= state[0] & 0x8888;
-
-    out[1] ^= state[1] & 0x1111;
-    out[2] ^= state[1] & 0x2222;
-    out[3] ^= state[1] & 0x4444;
-    out[0] ^= state[1] & 0x8888;
-
-    out[2] ^= state[2] & 0x1111;
-    out[3] ^= state[2] & 0x2222;
-    out[0] ^= state[2] & 0x4444;
-    out[1] ^= state[2] & 0x8888;
-
-    out[3] ^= state[3] & 0x1111;
-    out[0] ^= state[3] & 0x2222;
-    out[1] ^= state[3] & 0x4444;
-    out[2] ^= state[3] & 0x8888;
-
-    state[0] = out[0]; state[1] = out[1]; state[2] = out[2]; state[3] = out[3];
-}
-
-void permuteInverse(uint16_t out[4])
-{
-    // inverse
-    uint16_t originalValue[4] = {0};
-    originalValue[0] ^= out[0] & 0x1111;
-    originalValue[0] ^= out[1] & 0x2222;
-    originalValue[0] ^= out[2] & 0x4444;
-    originalValue[0] ^= out[3] & 0x8888;
-
-    originalValue[1] ^= out[1] & 0x1111;
-    originalValue[1] ^= out[2] & 0x2222;
-    originalValue[1] ^= out[3] & 0x4444;
-    originalValue[1] ^= out[0] & 0x8888;
-
-    originalValue[2] ^= out[2] & 0x1111;
-    originalValue[2] ^= out[3] & 0x2222;
-    originalValue[2] ^= out[0] & 0x4444;
-    originalValue[2] ^= out[1] & 0x8888;
-
-    originalValue[3] ^= out[3] & 0x1111;
-    originalValue[3] ^= out[0] & 0x2222;
-    originalValue[3] ^= out[1] & 0x4444;
-    originalValue[3] ^= out[2] & 0x8888;
-    out[0] = originalValue[0]; out[1] = originalValue[1]; out[2] = originalValue[2]; out[3] = originalValue[3];
-}
-
-int encrypt(uint8_t data[8], uint8_t key[8],  uint16_t sBox[16])
-{
-    uint16_t state[4], rk[4];
-    memcpy(state, data, sizeof(state));
-    memcpy(rk, key, sizeof(rk));
-
-    for(int round = 0 ; round < 4; round++)
+    uint16_t out = {0};
+    for(int i = 0; i < permLen; i++)
     {
-        // key addition
-        for (int i = 0; i < 4; i++)
-        {
-            state[i] ^= rk[i];
-        }
-        // apply sBox
-        sbox(sBox, state);
-        // apply permutation
-        permute(state);
+        uint16_t indexOfIBitInOutput = permutation[i];
+        // we will go through indexes 0...permLen - 1
+        uint16_t valueOfIBit = (((uint16_t) *state) >> (permLen - i - 1)) & 0x1;
+        // value of bit in proper position
+        uint16_t tmp = valueOfIBit << (permLen - indexOfIBitInOutput - 1);
+        out = out ^ tmp;
     }
 
-    memcpy(data, state, sizeof(state));
+    *state = out;
+}
+
+
+
+int encrypt(uint16_t* data, uint16_t key,  uint16_t sBox[16], uint16_t permutation[16], int permLen)
+{
+    uint16_t state, rk;
+    state = *data;
+    rk = key;
+
+    for(int round = 0 ; round < 3; round++)
+    {
+        // key addition
+        state ^= rk;
+        // apply sBox
+        sbox(sBox, &state);
+        // apply permutation
+        permute(&state, permutation, permLen);
+    }
+
+    // round 4
+    state ^= rk;
+    sbox(sBox, &state);
+
+    // last step - xor key
+    state ^= rk; //TODO ???
+    // copy result
+    *data = state;
+    return 1;
+}
+
+int decrypt(uint16_t* data, uint16_t key, uint16_t sBoxInverse[16], uint16_t permutation[16], int permLen)
+{
+    uint16_t state, rk;
+    state = *data;
+    rk = key;
+
+    // xor key
+    state ^= rk;// TODO ???
+
+    // first round
+    sbox(sBoxInverse, &state);
+    state ^= rk;
+
+    for(int round = 0; round < 3; round++)
+    {
+        // apply inverse permutation
+        permute(&state, permutation, permLen);
+        // apply sBox with inverse table
+        sbox(sBoxInverse, &state);
+        // key addition
+        state ^= rk;
+
+    }
+    *data = state;
 
     return 1;
 }
 
-int decrypt(uint8_t data[8], uint8_t key[8], uint16_t sBoxInverse[16])
+int bruteforce()
 {
-    uint16_t state[4], rk[4];
+    uint16_t sBox[16] = {0x5, 0xB, 0x3, 0x4, 0x1, 0x6, 0xA, 0x9, 0x7, 0xE, 0x0, 0xC, 0x2, 0xF, 0xD, 0x8};
+    uint16_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
 
-    memcpy(state, data, sizeof(state));
-    memcpy(rk, key, sizeof(rk));
+    uint16_t permutation[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+    uint16_t inversePerm[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+    int permLen = (int)(sizeof (permutation) / sizeof (permutation[0]));
 
-    for(int round = 0; round < 4; round++)
+    // plaint text
+    uint16_t dataPt = 0x4000;
+    // cipher text
+    uint16_t dataCt = 0x156b;
+    uint16_t key;
+
+    for(key = 0; key < 65535; key++) //TODO 0 key wont be tried
     {
-        // apply inverse permutation
-        permuteInverse(state);
-
-        // apply sBox with inverse table
-        sbox(sBoxInverse, state);
-        // key addition
-        for (int i = 0; i < 4; i++)
+        uint16_t tmp = dataCt;
+        decrypt(&tmp, key + 1, sBoxInverse, inversePerm, permLen);
+        if(tmp == dataPt)
         {
-            state[i] ^= rk[i];
+            printf("key : %04x\n", key + 1);
         }
     }
-    memcpy(data, state, sizeof(state));
 
+    printf("%02x\n", dataPt);
+    encrypt(&dataPt, key, sBox, permutation, permLen);
+    printf("%04x\n", dataPt);
+    decrypt(&dataPt, key, sBoxInverse, inversePerm, permLen);
+    printf("%x\n", dataPt);
+    return 1;
+}
+
+int allPlaintexts()
+{
     return 1;
 }
 
@@ -142,27 +133,24 @@ int main()
     //                            0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   A,   B,   C,   D,   E,   F
     uint16_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
 
-    uint8_t data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAA};
-    uint8_t key[8] = {0xab, 0xcd, 0xef, 0x01, 0xab, 0xcd, 0xef, 0x01};
+    // permutation                0    1    2    3    4    5    6    7    8    9    10   11   12  13   14   15
+    uint16_t permutation[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+    // inverse permutation
+    uint16_t inversePerm[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
 
-    for (int i = 0; i < 8; i++)
-    {
-        printf("%02x", data[i]);
-    }
-    printf("\n");
-    encrypt(data, key, sBox);
-    for (int i = 0; i < 8; i++)
-    {
-        printf("%02x", data[i]);
-    }
-    decrypt(data, key, sBoxInverse);
-    printf("\n");
-    for (int i = 0; i < 8; i++)
-    {
-        printf("%02x", data[i]);
-    }
-    printf("\n");
-    printf("Hello, World!\n");
+
+    uint16_t data = 0x4000;
+    uint16_t key = 0xFFFF;
+
+    int permLen = (int)(sizeof (permutation) / sizeof (permutation[0]));
+    printf("%02x\n", data);
+    encrypt(&data, key, sBox, permutation, permLen);
+    printf("%04x\n", data);
+    decrypt(&data, key, sBoxInverse, inversePerm, permLen);
+    printf("%x\n", data);
+
+    printf("bruteforce\n");
+    bruteforce();
     return 0;
 }
 
