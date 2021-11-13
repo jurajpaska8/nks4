@@ -136,18 +136,24 @@ int encrypt(const uint8_t multipleTable[16],
     {
         // sub bytes
         sbox(sBoxData, state);
+
         // shift rows
         shiftRows(state);
+
         // mix columns
-        //mcFun(multipleTable, mcMattrix, state, dataToReturn);
+        uint8_t tmp[4][4];
+        mcFun(multipleTable, mcMattrix, state, tmp);
+        memcpy(state, tmp, 16);
 
         // add round key
         addRoundKey(keys[round + 1], state);
     }
 
     // sub bytes
+    sbox(sBoxData, state);
 
     // shift rows
+    shiftRows(state);
 
     // add round key
     addRoundKey(keys[10], state);
@@ -171,8 +177,10 @@ int decrypt(const uint8_t multipleTable[16],
     addRoundKey(keys[10], state);
 
     // shift rows
+    shiftRowsInverse(state);
 
     // sub bytes
+    sbox(sBoxInverseData, state);
 
     for(int round = 0; round < 9; round++)
     {
@@ -180,6 +188,9 @@ int decrypt(const uint8_t multipleTable[16],
         addRoundKey(keys[10 - 1 - round], state);
 
         // mix columns
+        uint8_t tmp[4][4];
+        mcFun(multipleTable, mcMattrix, state, tmp);
+        memcpy(state, tmp, 16);
 
         // shift rows
         shiftRowsInverse(state);
