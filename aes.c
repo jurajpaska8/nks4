@@ -149,19 +149,46 @@ int decrypt(const uint8_t data[4][4], const uint8_t sBoxInverseData[16], const u
     return 1;
 }
 
-void keySchedule(const uint8_t key0[4][4], const uint8_t constants[10])
+void keySchedule(const uint8_t key0[4][4], const uint8_t constants[10], const uint8_t sBox[16], uint8_t keyToReturn[4][4], int constIdx)
 {
-    uint8_t key1[4][4];
     /*
      * First column
      */
     // last column of key0
-    //uint8_t [4] lastColumn =
+    uint8_t lastColumn[4];
+    for (int i = 0; i < 4; ++i) {
+        lastColumn[i] = key0[i][3];
+    }
+
     // shift columns
+    uint8_t tmp[4];
+    memcpy(tmp, lastColumn, 4);
+    for (int i = 0; i < 4; ++i) {
+        lastColumn[i] = tmp[(i + 1) % 4];
+    }
 
     // sbox
-
+    for (int i = 0; i < 4; ++i) {
+        lastColumn[i] = sBox[lastColumn[i]];
+    }
     // affine
+    for (int i = 0; i < 4; ++i) {
+        keyToReturn[i][0] = key0[i][0] ^ lastColumn[i];
+        if(i == 0)
+        {
+            keyToReturn[0][0] = keyToReturn[0][0] ^ constants[constIdx];
+        }
+    }
+
+        // compute others columns
+        for (int row = 0; row < 4; ++row)
+        {
+            for (int col = 1; col < 4; ++col)
+            {
+                keyToReturn[row][col] = keyToReturn[row][col - 1] ^ key0[row][col];
+            }
+        }
+    printf("break");
 }
 
 int main()
@@ -169,7 +196,7 @@ int main()
     const uint8_t sBox[16] = {0x5, 0xB, 0x3, 0x4, 0x1, 0x6, 0xA, 0x9, 0x7, 0xE, 0x0, 0xC, 0x2, 0xF, 0xD, 0x8};
     const uint8_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
 
-    const uint8_t key0[16] = {0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
+    const uint8_t key0[16] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
     uint8_t keys[11][4][4];
     for (int i = 0; i < 11; ++i)
     {
@@ -186,6 +213,11 @@ int main()
 
     int isEqual = memcmp(toEncrypt, decrypted, 16);
     printf("is Equal= %d", isEqual);
+
+    // key schedule
+    uint8_t keyToReturn[4][4];
+    uint8_t constants[10] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA};
+    keySchedule(keys[0], constants, sBox, keys[1], 0);
 
     return 0;
 }
