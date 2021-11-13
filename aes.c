@@ -258,11 +258,13 @@ int main()
 
     // key schedule
     const uint8_t key0[16] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
+    const uint8_t constants[10] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA};
+
     uint8_t keys[11][4][4];
     memcpy(keys[0], key0, 16);
 
-    uint8_t constants[10] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA};
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 10; ++i)
+    {
         keySchedule(keys[i], constants, sBox, keys[i + 1], i);
     }
 
@@ -275,21 +277,53 @@ int main()
     uint8_t mcMattrixInv[4][4];
     memcpy(mcMattrixInv, mcInv, 16);
 
+    // table for multiplication
     const uint8_t multipleTable[16] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9};
 
+//    // data for encryption
+//    uint8_t toEncrypt[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
+//    uint8_t toEnc[4][4];
+//    memcpy(toEnc, toEncrypt, 16);
+//
+//    // encryption
+//    uint8_t encrypted[4][4];
+//    encrypt(multipleTable, mcMattrix, toEnc, sBox, keys, encrypted);
+//
+//    // decryption
+//    uint8_t decrypted[4][4];
+//    decrypt(multipleTable, mcMattrixInv, encrypted, sBoxInverse, keys,  decrypted);
+//
+//    // test if data equals
+//    int isEqual = memcmp(toEncrypt, decrypted, 16);
+//    printf("is Equal= %d", isEqual);
 
-
+    // data for encryption
     uint8_t toEncrypt[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
     uint8_t toEnc[4][4];
     memcpy(toEnc, toEncrypt, 16);
-    uint8_t encrypted[4][4];
-    uint8_t decrypted[4][4];
 
-    encrypt(multipleTable, mcMattrix, toEnc, sBox, keys, encrypted);
-    decrypt(multipleTable, mcMattrixInv, encrypted, sBoxInverse, keys,  decrypted);
+    int cnt = 0;
+    for(int i = 0; i < 100; i++)
+    {
+        // encryption
+        uint8_t encrypted[4][4];
+        encrypt(multipleTable, mcMattrix, toEnc, sBox, keys, encrypted);
 
-    int isEqual = memcmp(toEncrypt, decrypted, 16);
-    printf("is Equal= %d", isEqual);
+        // decryption
+        uint8_t decrypted[4][4];
+        decrypt(multipleTable, mcMattrixInv, encrypted, sBoxInverse, keys,  decrypted);
 
+        // test if data equals
+        int isEqual = memcmp(toEnc, decrypted, 16);
+        printf("is Equal= %d\n", isEqual);
+        if(isEqual == 0)
+        {
+            cnt++;
+        }
+        // data
+        memcpy(toEnc, encrypted, 16);
+    }
+
+    printf("cnt= %d\n", cnt);
     return 0;
 }
