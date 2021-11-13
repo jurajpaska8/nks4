@@ -104,8 +104,10 @@ uint8_t mul(const uint8_t a, const uint8_t b, const uint8_t multTable[16])
     return multTable[exp];
 }
 
-void mcFun(const uint8_t multTable[16], const uint8_t mattrix[4][4], const uint8_t data[4][4], uint8_t dataToReturn[4][4])
+void mcFun(const uint8_t multTable[16], const uint8_t mattrix[4][4], uint8_t data[4][4])
 {
+    uint8_t dataToReturn[4][4];
+
     for (int col = 0; col < 4; ++col)
     {
         for (int i = 0; i < 4; ++i) {
@@ -116,7 +118,7 @@ void mcFun(const uint8_t multTable[16], const uint8_t mattrix[4][4], const uint8
             dataToReturn[i][col] = tmp;
         }
     }
-
+    memcpy(data, dataToReturn, 16);
 }
 
 int encrypt(const uint8_t multipleTable[16],
@@ -141,9 +143,7 @@ int encrypt(const uint8_t multipleTable[16],
         shiftRows(state);
 
         // mix columns
-        uint8_t tmp[4][4];
-        mcFun(multipleTable, mcMattrix, state, tmp);
-        memcpy(state, tmp, 16);
+        mcFun(multipleTable, mcMattrix, state);
 
         // add round key
         addRoundKey(keys[round + 1], state);
@@ -188,9 +188,7 @@ int decrypt(const uint8_t multipleTable[16],
         addRoundKey(keys[10 - 1 - round], state);
 
         // mix columns
-        uint8_t tmp[4][4];
-        mcFun(multipleTable, mcMattrix, state, tmp);
-        memcpy(state, tmp, 16);
+        mcFun(multipleTable, mcMattrix, state);
 
         // shift rows
         shiftRowsInverse(state);
@@ -291,16 +289,6 @@ int main()
     decrypt(multipleTable, mcMattrixInv, encrypted, sBoxInverse, keys,  decrypted);
 
     int isEqual = memcmp(toEncrypt, decrypted, 16);
-    printf("is Equal= %d", isEqual);
-
-    // mc
-    uint8_t dataToReturn[4][4] = {0};
-    mcFun(multipleTable, mcMattrix, decrypted, dataToReturn);
-
-    uint8_t dataToReturnDecrypted[4][4] = {0};
-    mcFun(multipleTable, mcMattrixInv, dataToReturn, dataToReturnDecrypted);
-
-    isEqual = memcmp(decrypted, dataToReturnDecrypted, 16);
     printf("is Equal= %d", isEqual);
 
     return 0;
