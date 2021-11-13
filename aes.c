@@ -1,10 +1,11 @@
 #include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
-#include <time.h>
+
+#define BYTES_IN_SEQUENCE 16384
+#define SEQUENCE_COUNT 100
 
 void transformTo1Dim(const uint8_t state2Dim[4][4], uint8_t state[16]);
+
 void transformTo2Dim(const uint8_t state[16], uint8_t state2Dim[4][4]);
 
 void sbox(const uint8_t sBox[16], uint8_t state[4][4])
@@ -205,9 +206,13 @@ int decrypt(const uint8_t multipleTable[16],
     return 1;
 }
 
-void keySchedule(const uint8_t key0[4][4], const uint8_t constants[10], const uint8_t sBox[16], uint8_t keyToReturn[4][4], int constIdx)
+void keySchedule(const uint8_t key0[4][4],
+                 const uint8_t constants[10],
+                 const uint8_t sBox[16],
+                 uint8_t keyToReturn[4][4],
+                 int constIdx)
 {
-    /*
+    /**
      * First column
      */
     // last column of key0
@@ -217,7 +222,7 @@ void keySchedule(const uint8_t key0[4][4], const uint8_t constants[10], const ui
         lastColumn[i] = key0[i][3];
     }
 
-    // shift columns
+    // shift column
     uint8_t tmp[4];
     memcpy(tmp, lastColumn, 4);
     for (int i = 0; i < 4; ++i)
@@ -240,14 +245,31 @@ void keySchedule(const uint8_t key0[4][4], const uint8_t constants[10], const ui
         }
     }
 
-        // compute others columns
-        for (int row = 0; row < 4; ++row)
+    /**
+    * Other columns
+    */
+    for (int row = 0; row < 4; ++row)
+    {
+        for (int col = 1; col < 4; ++col)
         {
-            for (int col = 1; col < 4; ++col)
-            {
-                keyToReturn[row][col] = keyToReturn[row][col - 1] ^ key0[row][col];
-            }
+            keyToReturn[row][col] = keyToReturn[row][col - 1] ^ key0[row][col];
         }
+    }
+}
+
+uint64_t transform128to64(const uint8_t state[4][4])
+{
+    uint64_t returnState = 0;
+    uint16_t columns[4] = {0};
+
+    for (int i = 0; i < 4; ++i) {
+        columns[i] ^= state[i][0] << 12;
+        columns[i] ^= state[i][1] << 8;
+        columns[i] ^= state[i][2] << 4;
+        columns[i] ^= state[i][3] << 0;
+    }
+    memcpy(&returnState, columns, 8);
+    return returnState;
 }
 
 int main()
@@ -280,23 +302,6 @@ int main()
     // table for multiplication
     const uint8_t multipleTable[16] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9};
 
-//    // data for encryption
-//    uint8_t toEncrypt[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
-//    uint8_t toEnc[4][4];
-//    memcpy(toEnc, toEncrypt, 16);
-//
-//    // encryption
-//    uint8_t encrypted[4][4];
-//    encrypt(multipleTable, mcMattrix, toEnc, sBox, keys, encrypted);
-//
-//    // decryption
-//    uint8_t decrypted[4][4];
-//    decrypt(multipleTable, mcMattrixInv, encrypted, sBoxInverse, keys,  decrypted);
-//
-//    // test if data equals
-//    int isEqual = memcmp(toEncrypt, decrypted, 16);
-//    printf("is Equal= %d", isEqual);
-
     // data for encryption
     uint8_t toEncrypt[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
     uint8_t toEnc[4][4];
@@ -324,6 +329,39 @@ int main()
         memcpy(toEnc, encrypted, 16);
     }
 
-    printf("cnt= %d\n", cnt);
+    printf("OK enc-dec pairs/all = %d/100\n", cnt);
+
+    // ctr
+
+    uint64_t idxAndIv[2];
+    FILE *file = fopen("data", "ab");
+    for (int i = 0; i < 100; ++i) {
+        printf("i = %i\n", i);
+        idxAndIv[0] = i;
+        uint64_t out[131072] = {0};
+        for (int j = 0; j < 16384; ++j) {
+            idxAndIv[1] = j;
+            uint8_t pt[4][4];
+            uint8_t ct[4][4];
+            memcpy(pt, idxAndIv, 16);
+            encrypt(multipleTable, mcMattrix, pt, sBox, keys, ct);
+            uint64_t output = transform128to64(ct);
+            out[j] = output;
+        }
+        fwrite(out, sizeof(out[0]), 131072, file);
+
+    }
+    fclose(file);
+
+//    idxAndIv[0] = 0;
+//    idxAndIv[1] = 0;
+//    uint8_t pt[4][4];
+//    uint8_t ct[4][4];
+//    memcpy(pt, idxAndIv, 16);
+//    encrypt(multipleTable, mcMattrix, pt, sBox, keys, ct);
+//    uint64_t output = transform128to64(ct);
+
+
+
     return 0;
 }
