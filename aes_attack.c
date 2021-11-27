@@ -131,130 +131,166 @@ void printState(uint8_t state[4][4])
     }
     printf("\n");
 }
-void printXorStates(uint8_t state1[4][4], uint8_t state2[4][4])
+void printXorStates(uint8_t state[16][4][4])
+{
+    uint8_t xors[4][4] = {0};
+
+    for(int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            uint8_t tmp = 0;
+            for (int k = 0; k < 16; ++k)
+            {
+                tmp = tmp ^ state[k][i][j];
+            }
+            xors[i][j] = tmp;
+        }
+    }
+    printf("xors \n");
+    for(int i = 0; i < 4; i++)
+    {
+        printf("[%x %x %x %x]\n", xors[i][0], xors[i][1], xors[i][2], xors[i][3]);
+    }
+    printf("\n");
+}
+
+void returnXorsTable(uint8_t state[16][4][4], uint8_t xors[4][4])
 {
     for(int i = 0; i < 4; i++)
     {
-        printf("[%x %x %x %x]\n", state1[i][0] ^ state2[i][0], state1[i][1] ^ state2[i][1], state1[i][2] ^ state2[i][2], state1[i][3] ^ state2[i][3]);
+        for (int j = 0; j < 4; ++j)
+        {
+            uint8_t tmp = 0;
+            for (int k = 0; k < 16; ++k)
+            {
+                tmp = tmp ^ state[k][i][j];
+            }
+            xors[i][j] = tmp;
+        }
     }
-    printf("\n");
 }
 
 
 
 int encrypt(const uint8_t multipleTable[16],
             const uint8_t mcMattrix[4][4],
-            const uint8_t data1[4][4],
-            const uint8_t data2[4][4],
+            const uint8_t data[16][4][4],
             const uint8_t sBoxData[16],
-            const uint8_t keys[11][4][4],
-            uint8_t dataToReturn[4][4])
+            const uint8_t keys[5][4][4],
+            uint8_t dataToReturn[16][4][4])
 {
-    uint8_t state1[4][4];
-    memcpy(state1, data1, 16);
-
-    uint8_t state2[4][4];
-    memcpy(state2, data2, 16);
+    uint8_t state[16][4][4];
+    memcpy(state, data, 16*16);
 
     // add round key
     printf("****Initial Round****\n");
     printf("Add Round Key\n");
-    addRoundKey(keys[0], state1);
-    printState(state1);
+    for (int i = 0; i < 16; ++i)
+    {
+        addRoundKey(keys[0], state[i]);
+    }
+    printXorStates(state);
 
-    addRoundKey(keys[0], state2);
-    printState(state2);
-    printXorStates(state1, state2);
-
-    for(int round = 1; round < 3; round++)
+    for(int round = 1; round <= 3; round++)
     {
         printf("****Round %i****\n", round);
         // sub bytes
         printf("SubBytes\n");
-        sbox(sBoxData, state1);
-        printState(state1);
-
-        sbox(sBoxData, state2);
-        printState(state2);
-        printXorStates(state1, state2);
+        for (int i = 0; i < 16; ++i)
+        {
+            sbox(sBoxData, state[i]);
+        }
+        printXorStates(state);
 
         // shift rows
         printf("ShiftRows\n");
-        shiftRows(state1);
-        printState(state1);
-
-        shiftRows(state2);
-        printState(state2);
-        printXorStates(state1, state2);
+        for (int i = 0; i < 16; ++i)
+        {
+            shiftRows(state[i]);
+        }
+        printXorStates(state);
 
         // mix columns
         printf("MixColumns\n");
-        mcFun(multipleTable, mcMattrix, state1);
-        printState(state1);
-
-        mcFun(multipleTable, mcMattrix, state2);
-        printState(state2);
-        printXorStates(state1, state2);
+        for (int i = 0; i < 16; ++i)
+        {
+            mcFun(multipleTable, mcMattrix, state[i]);
+        }
+        printXorStates(state);
 
         // add round key
         printf("Add Round Key\n");
-        addRoundKey(keys[round + 1], state1);
-        printState(state1);
-
-        addRoundKey(keys[round + 1], state2);
-        printState(state2);
-        printXorStates(state1, state2);
-
+        for (int i = 0; i < 16; ++i)
+        {
+            addRoundKey(keys[round], state[i]);
+        }
+        printXorStates(state);
     }
 
     printf("****Final Round****\n");
-    // sub bytes
+    // sub bytes TODO here difference is 0 if this is fourth round
     printf("SubBytes*\n");
-    sbox(sBoxData, state1);
-    printState(state1);
-
-    sbox(sBoxData, state2);
-    printState(state2);
-    printXorStates(state1, state2);
+    for (int i = 0; i < 16; ++i)
+    {
+        sbox(sBoxData, state[i]);
+    }
+    printXorStates(state);
 
     // shift rows
     printf("ShiftRows*\n");
-    shiftRows(state1);
-    printState(state1);
-
-    shiftRows(state2);
-    printState(state2);
-    printXorStates(state1, state2);
+    for (int i = 0; i < 16; ++i)
+    {
+        shiftRows(state[i]);
+    }
+    printXorStates(state);
 
     // add round key
     printf("Add Round Key*\n");
-    addRoundKey(keys[10], state1);
-    printState(state1);
-
-    addRoundKey(keys[10], state2);
-    printState(state2);
-    printXorStates(state1, state2);
+    for (int i = 0; i < 16; ++i)
+    {
+        addRoundKey(keys[4], state[i]);
+    }
+    printXorStates(state);
 
     // copy data
-    memcpy(dataToReturn, state1, 16);
+    memcpy(dataToReturn, state, 16*16);
     return 1;
 }
 
-uint64_t transform128to64(const uint8_t state[4][4])
+int decryptFourthRound(const uint8_t data[16][4][4],
+            const uint8_t sBoxData[16],
+            const uint8_t key[4][4],
+            uint8_t xors[4][4])
 {
-    uint64_t returnState = 0;
-    uint16_t columns[4] = {0};
+    uint8_t state[16][4][4];
+    memcpy(state, data, 16*16);
 
-    for (int i = 0; i < 4; ++i) {
-        columns[i] ^= state[i][0] << 12;
-        columns[i] ^= state[i][1] << 8;
-        columns[i] ^= state[i][2] << 4;
-        columns[i] ^= state[i][3] << 0;
+    printf("****Final Round****\n");
+    // add round key
+    printf("Add Round Key*\n");
+    for (int i = 0; i < 16; ++i)
+    {
+        addRoundKey(key, state[i]);
     }
-    memcpy(&returnState, columns, 8);
-    return returnState;
+    printXorStates(state);
+    // shift rows
+    printf("ShiftRows*\n");
+    for (int i = 0; i < 16; ++i)
+    {
+        shiftRowsInverse(state[i]);
+    }
+    printXorStates(state);
+    // sub bytes
+    printf("SubBytes*\n");
+    for (int i = 0; i < 16; ++i)
+    {
+        sbox(sBoxData, state[i]);
+    }
+    printXorStates(state);
+    returnXorsTable(state, xors);
+    return 1;
 }
-
 int main()
 {
     // S-Boxes
@@ -263,11 +299,8 @@ int main()
 
     // key schedule
     const uint8_t key0[16] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
-    const uint8_t constants[10] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA};
-
-    uint8_t keys[11][4][4];
-
-    for (int i = 0; i < 11; ++i)
+    uint8_t keys[5][4][4];
+    for (int i = 0; i < 5; ++i)
     {
         memcpy(keys[i], key0, 16);
     }
@@ -285,17 +318,34 @@ int main()
     const uint8_t multipleTable[16] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9};
 
     // data for encryption
-    uint8_t toEncrypt0[16] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-    uint8_t toEncrypt1[16] = {0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+    uint8_t toEnc[16][4][4] = {0};
 
-    uint8_t toEnc0[4][4];
-    memcpy(toEnc0, toEncrypt0, 16);
+    for(int i = 0; i < 16; i++)
+    {
+        toEnc[i][0][0] = i;
+    }
+    printXorStates(toEnc);
 
-    uint8_t toEnc1[4][4];
-    memcpy(toEnc1, toEncrypt1, 16);
+    uint8_t encrypted[16][4][4];
+    encrypt(multipleTable, mcMattrix, toEnc, sBox, keys, encrypted);
 
-    uint8_t encrypted[4][4];
-    encrypt(multipleTable, mcMattrix, toEnc0, toEnc1, sBox, keys, encrypted);
+    // key schedule dec
+    const uint8_t key1[16] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
+    uint8_t keys1[5][4][4];
+    for (int i = 0; i < 5; ++i)
+    {
+        memcpy(keys1[i], key1, 16);
+    }
+
+
+    printf("************DECRYPTION*********\n");
+    // try bits
+    for (int i = 0; i < 16; ++i)
+    {
+        keys1[4][0][0] = i;
+        uint8_t xors[4][4] = {0};
+        decryptFourthRound(encrypted, sBoxInverse, keys1[4], xors);
+    }
 
     return 0;
 }
