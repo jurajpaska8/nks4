@@ -266,28 +266,24 @@ int decryptFourthRound(const uint8_t data[16][4][4],
     uint8_t state[16][4][4];
     memcpy(state, data, 16*16);
 
-    printf("****Final Round****\n");
     // add round key
-    printf("Add Round Key*\n");
     for (int i = 0; i < 16; ++i)
     {
         addRoundKey(key, state[i]);
     }
-    printXorStates(state);
+
     // shift rows
-    printf("ShiftRows*\n");
     for (int i = 0; i < 16; ++i)
     {
         shiftRowsInverse(state[i]);
     }
-    printXorStates(state);
+
     // sub bytes
-    printf("SubBytes*\n");
     for (int i = 0; i < 16; ++i)
     {
         sbox(sBoxData, state[i]);
     }
-    printXorStates(state);
+    // return
     returnXorsTable(state, xors);
     return 1;
 }
