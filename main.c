@@ -31,16 +31,15 @@ void permute(uint16_t* state, const uint16_t permutation[], int permLen)
 
 
 
-int encrypt(uint16_t* data, uint16_t key,  uint16_t sBox[16], uint16_t permutation[16], int permLen)
+int encrypt(uint16_t* data, const uint16_t keys[5],  uint16_t sBox[16], uint16_t permutation[16], int permLen)
 {
-    uint16_t state, rk;
+    uint16_t state;
     state = *data;
-    rk = key;
 
     for(int round = 0 ; round < 3; round++)
     {
         // key addition
-        state ^= rk;
+        state ^= keys[round];
         // apply sBox
         sbox(sBox, &state);
         // apply permutation
@@ -48,28 +47,27 @@ int encrypt(uint16_t* data, uint16_t key,  uint16_t sBox[16], uint16_t permutati
     }
 
     // round 4
-    state ^= rk;
+    state ^= keys[3];
     sbox(sBox, &state);
 
     // last step - xor key
-    state ^= rk; //TODO ???
+    state ^= keys[4];
     // copy result
     *data = state;
     return 1;
 }
 
-int decrypt(uint16_t* data, uint16_t key, uint16_t sBoxInverse[16], uint16_t permutation[16], int permLen)
+int decrypt(uint16_t* data, const uint16_t keys[5], uint16_t sBoxInverse[16], uint16_t permutation[16], int permLen)
 {
-    uint16_t state, rk;
+    uint16_t state;
     state = *data;
-    rk = key;
 
     // xor key
-    state ^= rk;// TODO ???
+    state ^= keys[0];
 
     // first round
     sbox(sBoxInverse, &state);
-    state ^= rk;
+    state ^= keys[1];
 
     for(int round = 0; round < 3; round++)
     {
@@ -78,7 +76,7 @@ int decrypt(uint16_t* data, uint16_t key, uint16_t sBoxInverse[16], uint16_t per
         // apply sBox with inverse table
         sbox(sBoxInverse, &state);
         // key addition
-        state ^= rk;
+        state ^= keys[round + 2];
 
     }
     *data = state;
@@ -86,72 +84,89 @@ int decrypt(uint16_t* data, uint16_t key, uint16_t sBoxInverse[16], uint16_t per
     return 1;
 }
 
-int bruteforce()
-{
-    uint16_t sBox[16] = {0x5, 0xB, 0x3, 0x4, 0x1, 0x6, 0xA, 0x9, 0x7, 0xE, 0x0, 0xC, 0x2, 0xF, 0xD, 0x8};
-    uint16_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
-
-    uint16_t permutation[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
-    uint16_t inversePerm[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
-    int permLen = (int)(sizeof (permutation) / sizeof (permutation[0]));
-
-    // plaint text
-    uint16_t dataPt = 0x4000;
-    // cipher text
-    uint16_t dataCt = 0x156b;
-    uint16_t key;
-
-    for(key = 0; key < 65535; key++) //TODO 0 key wont be tried
-    {
-        uint16_t tmp = dataCt;
-        decrypt(&tmp, key + 1, sBoxInverse, inversePerm, permLen);
-        if(tmp == dataPt)
-        {
-            printf("key : %04x\n", key + 1);
-        }
-    }
-
-    printf("%02x\n", dataPt);
-    encrypt(&dataPt, key, sBox, permutation, permLen);
-    printf("%04x\n", dataPt);
-    decrypt(&dataPt, key, sBoxInverse, inversePerm, permLen);
-    printf("%x\n", dataPt);
-    return 1;
-}
-
-int allPlaintexts()
-{
-    uint16_t sBox[16] = {0x5, 0xB, 0x3, 0x4, 0x1, 0x6, 0xA, 0x9, 0x7, 0xE, 0x0, 0xC, 0x2, 0xF, 0xD, 0x8};
-    uint16_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
-
-    uint16_t permutation[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
-    uint16_t inversePerm[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
-    int permLen = (int)(sizeof (permutation) / sizeof (permutation[0]));
-
-    // plaint text
-    uint16_t dataPt = 0x0000;
-    // cipher text
-    uint16_t dataCt;
-    uint16_t key = 0x2222;
-
-    for(dataPt = 0; dataPt < 65535; dataPt++) //TODO 0 plain text wont be tried
-    {
-        uint16_t tmp = dataPt;
-        encrypt(&tmp, key, sBoxInverse, inversePerm, permLen);
-    }
-    return 1;
-}
+//int bruteforce()
+//{
+//    uint16_t sBox[16] = {0x5, 0xB, 0x3, 0x4, 0x1, 0x6, 0xA, 0x9, 0x7, 0xE, 0x0, 0xC, 0x2, 0xF, 0xD, 0x8};
+//    uint16_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
+//
+//    uint16_t permutation[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+//    uint16_t inversePerm[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+//    int permLen = (int)(sizeof (permutation) / sizeof (permutation[0]));
+//
+//    // plaint text
+//    uint16_t dataPt = 0x4000;
+//    // cipher text
+//    uint16_t dataCt = 0x156b;
+//    uint16_t key;
+//
+//    for(key = 0; key < 65535; key++) //TODO 0 key wont be tried
+//    {
+//        uint16_t tmp = dataCt;
+//        decrypt(&tmp, key + 1, sBoxInverse, inversePerm, permLen);
+//        if(tmp == dataPt)
+//        {
+//            printf("key : %04x\n", key + 1);
+//        }
+//    }
+//
+//    printf("%02x\n", dataPt);
+//    encrypt(&dataPt, key, sBox, permutation, permLen);
+//    printf("%04x\n", dataPt);
+//    decrypt(&dataPt, key, sBoxInverse, inversePerm, permLen);
+//    printf("%x\n", dataPt);
+//    return 1;
+//}
+//
+//int allPlaintexts()
+//{
+//    uint16_t sBox[16] = {0x5, 0xB, 0x3, 0x4, 0x1, 0x6, 0xA, 0x9, 0x7, 0xE, 0x0, 0xC, 0x2, 0xF, 0xD, 0x8};
+//    uint16_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
+//
+//    uint16_t permutation[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+//    uint16_t inversePerm[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+//    int permLen = (int)(sizeof (permutation) / sizeof (permutation[0]));
+//
+//    // plaint text
+//    uint16_t dataPt = 0x0000;
+//    // cipher text
+//    uint16_t dataCt;
+//    uint16_t key = 0x2222;
+//
+//    for(dataPt = 0; dataPt < 65535; dataPt++) //TODO 0 plain text wont be tried
+//    {
+//        uint16_t tmp = dataPt;
+//        encrypt(&tmp, key, sBoxInverse, inversePerm, permLen);
+//    }
+//    return 1;
+//}
 
 int main()
 {
-    clock_t t;
-    t = clock();
-    printf("bruteforce\n");
-    bruteforce();
-    //allPlaintexts();
-    t = clock() - t;
-    double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds
-    printf("elapsed time: %2f", time_taken);
+    // sboxes
+    uint16_t sBox[16] = {0x5, 0xB, 0x3, 0x4, 0x1, 0x6, 0xA, 0x9, 0x7, 0xE, 0x0, 0xC, 0x2, 0xF, 0xD, 0x8};
+    uint16_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
+    // perm
+    uint16_t permutation[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+    uint16_t inversePerm[16] = {0x0, 0x4, 0x8, 0xC, 0x1, 0x5, 0x9, 0xD, 0x2, 0x6, 0xA, 0xE, 0x3, 0x7, 0xB, 0xF};
+
+    // pt
+    uint16_t dataPt = 0x2345;
+    // ct
+    uint16_t dataCt;
+    // keys
+    uint16_t keys[5] = {0x2222, 0x2223, 0x2233, 0x2333, 0x3333};
+    uint16_t keysInv[5] = {0x3333, 0x2333, 0x2233, 0x2223, 0x2222};
+
+    // perm len
+    int permLen = (int)(sizeof (permutation) / sizeof (permutation[0]));
+
+    // encrypt
+    encrypt(&dataPt, keys, sBox, permutation, permLen);
+    printf("%04x\n", dataPt);
+
+    // decrypt
+    decrypt(&dataPt, keysInv, sBoxInverse, inversePerm, permLen);
+    printf("%04x\n", dataPt);
     return 0;
 }
 
