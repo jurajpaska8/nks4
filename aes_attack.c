@@ -381,5 +381,19 @@ int main()
 
     printf("\nCount of Candidates\n");
     printState(candidatesCount);
+    printf("\nAll Candidates\n");
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            printf("Candidates for [%i, %i]: ", i, j);
+            for (int k = 0; k < 16; ++k) {
+                if(candidates[i][j][k] == -1)
+                {
+                    break;
+                }
+                printf("%i ", candidates[i][j][k]);
+            }
+            printf("\n");
+        }
+    }
     return 0;
 }
