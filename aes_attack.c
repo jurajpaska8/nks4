@@ -148,7 +148,7 @@ void printXorStates(uint8_t state[16][4][4])
             xors[i][j] = tmp;
         }
     }
-    printf("xors \n");
+    printf("XOR of all 16 values on each position \n");
     for(int i = 0; i < 4; i++)
     {
         printf("[%x %x %x %x]\n", xors[i][0], xors[i][1], xors[i][2], xors[i][3]);
@@ -298,7 +298,7 @@ int main()
     const uint8_t sBox[16] = {0x5, 0xB, 0x3, 0x4, 0x1, 0x6, 0xA, 0x9, 0x7, 0xE, 0x0, 0xC, 0x2, 0xF, 0xD, 0x8};
     const uint8_t sBoxInverse[16] = {0xA, 0x4, 0xC, 0x2, 0x3, 0x0, 0x5, 0x8, 0xF, 0x7, 0x6, 0x1, 0xB, 0xE, 0x9, 0xD};
 
-    // key schedule
+    // key schedule - simplified - all keys are same
     const uint8_t key0[16] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
     uint8_t keys[5][4][4];
     for (int i = 0; i < 5; ++i)
@@ -311,6 +311,7 @@ int main()
     uint8_t mcMattrix[4][4];
     memcpy(mcMattrix, mc, 16);
 
+    // inverse mix columns
     const uint8_t mcInv[16] = {0xE, 0xB, 0xD, 0x9, 0x9, 0xE, 0xB, 0xD, 0xD, 0x9, 0xE, 0xB, 0xB, 0xD, 0x9, 0xE};
     uint8_t mcMattrixInv[4][4];
     memcpy(mcMattrixInv, mcInv, 16);
@@ -318,23 +319,18 @@ int main()
     // table for multiplication
     const uint8_t multipleTable[16] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9};
 
-    // data for encryption
+    // data for encryption - 16 inputs 4x4
     uint8_t toEnc1[16][4][4] = {0};
-    uint8_t toEnc2[16][4][4] = {0};
 
     for(int i = 0; i < 16; i++)
     {
         toEnc1[i][0][0] = i;
-        toEnc2[i][0][0] = 15 - i;
-
     }
 
+    // print to verify that XOR is 0
     printXorStates(toEnc1);
-
     uint8_t encrypted1[16][4][4];
-    uint8_t encrypted2[16][4][4];
     encrypt(multipleTable, mcMattrix, toEnc1, sBox, keys, encrypted1);
-    encrypt(multipleTable, mcMattrix, toEnc1, sBox, keys, encrypted2);
 
     // key schedule dec
     const uint8_t key1[16] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
@@ -344,13 +340,26 @@ int main()
         memcpy(keys1[i], key1, 16);
     }
 
-    printf("************DECRYPTION*********\n");
-    // try bits
+    // candidates counts
     uint8_t candidatesCount[4][4] = {0};
+    // all possible candidates
+    int candidates[4][4][16];
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            for (int k = 0; k < 16; ++k) {
+                candidates[i][j][k] = -1;
+            }
+        }
+    }
+
+    // decryption of last round
+    printf("************DECRYPTION*********\n");
     for (int i = 0; i <= 3; ++i) {
         for (int j = 0; j <= 3; ++j) {
             printf("[%i][%i]\n", i, j);
+            // save temporary original value of key
             uint8_t tmp = keys1[4][i][j];
+            // try all possible hex numbers for each position and find candidates
             for (int k = 0; k < 16; ++k)
             {
                 printf("Trying key: %i on position [%i][%i]\n", k, i, j);
@@ -360,8 +369,9 @@ int main()
                 printState(xors);
                 if(xors[i][(j + i) % 4] == 0)
                 {
+                    candidates[i][j][candidatesCount[i][j]] = k;
                     candidatesCount[i][j]++;
-                    printf("Candidate: %i \n", k);
+                    printf("Add Candidate: %i to Candidates for position [%i, %i] \n\n", k, i, j);
                 }
             }
             // return key back to zero
