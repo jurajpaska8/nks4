@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <stdlib.h>
 
 #define UINT_64_IN_SEQUENCE 131072
 #define SEQUENCE_COUNT 100
@@ -271,18 +272,22 @@ int decryptFourthRound(const uint8_t data[16][4][4],
     {
         addRoundKey(key, state[i]);
     }
+//    printXorStates(state);
 
     // shift rows
     for (int i = 0; i < 16; ++i)
     {
         shiftRowsInverse(state[i]);
     }
+//    printXorStates(state);
 
     // sub bytes
     for (int i = 0; i < 16; ++i)
     {
         sbox(sBoxData, state[i]);
     }
+//    printXorStates(state);
+
     // return
     returnXorsTable(state, xors);
     return 1;
@@ -314,16 +319,22 @@ int main()
     const uint8_t multipleTable[16] = {0x1, 0x2, 0x4, 0x8, 0x3, 0x6, 0xC, 0xB, 0x5, 0xA, 0x7, 0xE, 0xF, 0xD, 0x9};
 
     // data for encryption
-    uint8_t toEnc[16][4][4] = {0};
+    uint8_t toEnc1[16][4][4] = {0};
+    uint8_t toEnc2[16][4][4] = {0};
 
     for(int i = 0; i < 16; i++)
     {
-        toEnc[i][0][0] = i;
-    }
-    printXorStates(toEnc);
+        toEnc1[i][0][0] = i;
+        toEnc2[i][0][0] = 15 - i;
 
-    uint8_t encrypted[16][4][4];
-    encrypt(multipleTable, mcMattrix, toEnc, sBox, keys, encrypted);
+    }
+
+    printXorStates(toEnc1);
+
+    uint8_t encrypted1[16][4][4];
+    uint8_t encrypted2[16][4][4];
+    encrypt(multipleTable, mcMattrix, toEnc1, sBox, keys, encrypted1);
+    encrypt(multipleTable, mcMattrix, toEnc1, sBox, keys, encrypted2);
 
     // key schedule dec
     const uint8_t key1[16] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
@@ -333,15 +344,32 @@ int main()
         memcpy(keys1[i], key1, 16);
     }
 
-
     printf("************DECRYPTION*********\n");
     // try bits
-    for (int i = 0; i < 16; ++i)
-    {
-        keys1[4][0][0] = i;
-        uint8_t xors[4][4] = {0};
-        decryptFourthRound(encrypted, sBoxInverse, keys1[4], xors);
+    uint8_t candidatesCount[4][4] = {0};
+    for (int i = 0; i <= 3; ++i) {
+        for (int j = 0; j <= 3; ++j) {
+            printf("[%i][%i]\n", i, j);
+            uint8_t tmp = keys1[4][i][j];
+            for (int k = 0; k < 16; ++k)
+            {
+                printf("Trying key: %i on position [%i][%i]\n", k, i, j);
+                keys1[4][i][j] = k;
+                uint8_t xors[4][4] = {0};
+                decryptFourthRound(encrypted1, sBoxInverse, keys1[4], xors);
+                printState(xors);
+                if(xors[i][(j + i) % 4] == 0)
+                {
+                    candidatesCount[i][j]++;
+                    printf("Candidate: %i \n", k);
+                }
+            }
+            // return key back to zero
+            keys1[4][i][j] = tmp;
+        }
     }
 
+    printf("\nCount of Candidates\n");
+    printState(candidatesCount);
     return 0;
 }
